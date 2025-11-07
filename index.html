@@ -37,7 +37,7 @@
     if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js'); }
     let vouchers = [];
     async function load() {
-      const res = await fetch('vouchers.json');
+      const res = await fetch('cupones.json');
       vouchers = await res.json();
       render('');
     }
