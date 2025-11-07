@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vouchers Offline</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a"/>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial;margin:0;background:#0f172a;color:#e5e7eb}
+    header{position:sticky;top:0;background:#111827;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+    h1{margin:0;font-size:20px}
+    main{padding:16px}
+    .hint{font-size:14px;color:#9ca3af;margin:4px 0 16px}
+    .search{display:flex;gap:8px;align-items:center;margin:12px 0 16px}
+    input[type="search"]{flex:1;padding:10px 12px;border-radius:10px;border:1px solid #374151;background:#111827;color:#e5e7eb}
+    .btn{background:#2563eb;border:none;color:white;padding:8px 12px;border-radius:10px;text-decoration:none;cursor:pointer}
+    .btn.secondary{background:#334155}
+    ul{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+    li{display:flex;justify-content:space-between;align-items:center;background:#111827;border:1px solid #1f2937;padding:10px 12px;border-radius:12px}
+    .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%}
+    footer{padding:20px;color:#94a3b8;font-size:13px;text-align:center}
+  </style>
+</head>
+<body>
+  <header><h1>Vouchers Offline</h1></header>
+  <main>
+    <p class="hint">Tocá “Guardar todos” una vez y quedará accesible sin datos. También podés “Agregar a pantalla de inicio”.</p>
+    <div class="search">
+      <input id="q" type="search" placeholder="Buscar por nombre, ciudad o fecha…"/>
+      <button id="cacheAll" class="btn secondary">Guardar todos</button>
+    </div>
+    <ul id="list"></ul>
+  </main>
+  <footer>Funciona sin conexión. Si actualizás la lista, volvé a abrir con Internet para refrescar.</footer>
+  <script>
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js'); }
+    let vouchers = [];
+    async function load() {
+      const res = await fetch('vouchers.json');
+      vouchers = await res.json();
+      render('');
+    }
+    const list = document.getElementById('list');
+    function render(filter){
+      list.innerHTML='';
+      const val = (filter||'').toLowerCase();
+      for(const v of vouchers){
+        const hay = v.name.toLowerCase().includes(val) || (v.city||'').toLowerCase().includes(val) || (v.date_human||'').toLowerCase().includes(val);
+        if(!hay) continue;
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <div style="display:flex;flex-direction:column;gap:4px;max-width:70%">
+            <span class="name">${v.name}</span>
+            <span style="font-size:12px;color:#9ca3af">${v.city? v.city+' • ' : ''}${v.date_human||''}</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <a class="btn" href="${v.path}" target="_blank" rel="noopener">Abrir</a>
+            <button class="btn offline" data-path="${v.path}">⬇ Guardar offline</button>
+          </div>
+        `;
+        list.appendChild(li);
+      }
+      document.querySelectorAll('button.offline').forEach(btn=>{
+        btn.addEventListener('click', ()=> cachePath(btn.dataset.path));
+      });
+    }
+    document.getElementById('q').addEventListener('input', (e)=>render(e.target.value));
+    async function cachePath(p){
+      const reg = await navigator.serviceWorker.ready;
+      if(reg.active) reg.active.postMessage({type:'cache-add', path:p});
+    }
+    document.getElementById('cacheAll').addEventListener('click', async ()=>{
+      for (const v of vouchers){ await cachePath(v.path); }
+      alert('Listo: todos los vouchers están guardados offline.');
+    });
+    load();
+  </script>
+</body>
+</html>
